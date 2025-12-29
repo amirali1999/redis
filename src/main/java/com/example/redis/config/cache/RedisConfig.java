@@ -1,4 +1,4 @@
-package com.example.redis.config;
+package com.example.redis.config.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

@@ -71,4 +71,20 @@ public class RedisCacheService {
             jedis.del(key);
         }
     }
+
+    public long incr(String key) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            return jedis.incr(key);
+        }
+    }
+
+    public long getLongOrDefault(String key, long defaultValue) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            String v = jedis.get(key);
+            return v == null ? defaultValue : Long.parseLong(v);
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
 }

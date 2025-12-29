@@ -1,9 +1,11 @@
 package com.example.redis.controller;
 
+import com.example.redis.dto.PagedResult;
 import com.example.redis.dto.ProductDto;
 import com.example.redis.model.Product;
 import com.example.redis.service.ProductService;
 import jakarta.persistence.Column;
+import jakarta.websocket.server.PathParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +20,10 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public List<Product> getAll() {
-        return productService.getAll();
+    public PagedResult<Product> getAll(@PathParam("page") int page,
+                                      @PathParam("size") int size,
+                                      @PathParam("sort") String sort) {
+        return productService.getAll(page, size, sort);
     }
 
     @GetMapping("{id}")

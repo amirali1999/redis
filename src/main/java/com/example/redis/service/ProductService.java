@@ -1,14 +1,19 @@
 package com.example.redis.service;
 
+import com.example.redis.config.cache.CacheKeys;
+import com.example.redis.dto.PagedResult;
 import com.example.redis.dto.ProductDto;
 import com.example.redis.model.Product;
 import com.example.redis.repository.ProductRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -17,11 +22,11 @@ import java.util.Optional;
 public class ProductService {
 
     private final ProductRepository repository;
-    private final RedisCacheService redisCacheService;
+    private final RedisCacheService cache;
 
     public Product get(@NotNull Long id) {
 
-        Optional<Product> cachedProduct = redisCacheService.getJson(String.valueOf(id), Product.class);
+        Optional<Product> cachedProduct = cache.getJson(String.valueOf(id), Product.class);
 
         if (cachedProduct.isPresent()) {
             return cachedProduct.get();
@@ -31,20 +36,35 @@ public class ProductService {
                         System.out.println("id not found"); return null; }
                     );
 
-            redisCacheService.cache(String.valueOf(id), product);
+            cache.cache(String.valueOf(id), product);
 
             return product;
         }
     }
 
-    public List<Product> getAll() {
-        return repository.findAll();
-    }
+    public PagedResult<Product> getAll(int page, int size, String sort) {
+        long ver = cache.getLongOrDefault(CacheKeys.PRODUCT_LIST_VER, 1);
+        String key = CacheKeys.listKey(ver, page, size, sort);
 
+        Optional<PagedResult> cached = cache.getJson(key, PagedResult.class);
+        if (cached.isPresent()) {
+            return (PagedResult<Product>) cached.get();
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> db = repository.findAll(pageable);
+
+        PagedResult<Product> result = new PagedResult<>(
+                db.getContent(), page, size, db.getTotalElements(), db.getTotalPages()
+        );
+
+        cache.cache(key, result);
+        return result;
+    }
     public void delete(Long id) {
         repository.deleteById(id);
 
-        redisCacheService.delete(String.valueOf(id));
+        cache.delete(String.valueOf(id));
     }
 
     public Long post(ProductDto.Create create) {
@@ -52,7 +72,7 @@ public class ProductService {
 
         repository.save(product);
 
-        redisCacheService.cache(String.valueOf(product.getId()), product);
+        cache.cache(String.valueOf(product.getId()), product);
 
         return product.getId();
     }
@@ -78,7 +98,7 @@ public class ProductService {
 
         repository.save(product);
 
-        redisCacheService.delete(String.valueOf(product.getId()));
+        cache.delete(String.valueOf(product.getId()));
 
         return product;
     }
